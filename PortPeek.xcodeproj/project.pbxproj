@@ -11,9 +11,9 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		70E0497730407EA4008A313F /* RunStat */ = {
+		70E0497730407EA4008A313F /* PortPeek */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = RunStat;
+			path = PortPeek;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +32,7 @@
 		70E0496C30407EA4008A313F = {
 			isa = PBXGroup;
 			children = (
-				70E0497730407EA4008A313F /* RunStat */,
+				70E0497730407EA4008A313F /* PortPeek */,
 				70E0497630407EA4008A313F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		70E0497430407EA4008A313F /* RunStat */ = {
+		70E0497430407EA4008A313F /* PortPeek */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 70E0498030407EA5008A313F /* Build configuration list for PBXNativeTarget "RunStat" */;
+			buildConfigurationList = 70E0498030407EA5008A313F /* Build configuration list for PBXNativeTarget "PortPeek" */;
 			buildPhases = (
 				70E0497130407EA4008A313F /* Sources */,
 				70E0497230407EA4008A313F /* Frameworks */,
@@ -61,9 +61,9 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				70E0497730407EA4008A313F /* RunStat */,
+				70E0497730407EA4008A313F /* PortPeek */,
 			);
-			name = RunStat;
+			name = PortPeek;
 			packageProductDependencies = (
 			);
 			productName = PortPeek;
@@ -85,7 +85,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 70E0497030407EA4008A313F /* Build configuration list for PBXProject "RunStat" */;
+			buildConfigurationList = 70E0497030407EA4008A313F /* Build configuration list for PBXProject "PortPeek" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -99,7 +99,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				70E0497430407EA4008A313F /* RunStat */,
+				70E0497430407EA4008A313F /* PortPeek */,
 			);
 		};
 /* End PBXProject section */
@@ -263,7 +263,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.ospoon.RunStat;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ospoon.PortPeek;
 				PRODUCT_NAME = PortPeek;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -295,7 +295,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.ospoon.RunStat;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ospoon.PortPeek;
 				PRODUCT_NAME = PortPeek;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -310,7 +310,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		70E0497030407EA4008A313F /* Build configuration list for PBXProject "RunStat" */ = {
+		70E0497030407EA4008A313F /* Build configuration list for PBXProject "PortPeek" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				70E0497E30407EA5008A313F /* Debug */,
@@ -319,7 +319,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		70E0498030407EA5008A313F /* Build configuration list for PBXNativeTarget "RunStat" */ = {
+		70E0498030407EA5008A313F /* Build configuration list for PBXNativeTarget "PortPeek" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				70E0498130407EA5008A313F /* Debug */,

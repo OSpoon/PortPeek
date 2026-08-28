@@ -23,8 +23,8 @@ jobs:
       - name: Build
         run: |
           xcodebuild \
-            -project RunStat.xcodeproj \
-            -scheme RunStat \
+            -project PortPeek.xcodeproj \
+            -scheme PortPeek \
             -configuration Debug \
             -sdk macosx \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \

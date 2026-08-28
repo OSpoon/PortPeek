@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 env:
-  SCHEME: RunStat
+  SCHEME: PortPeek
   APP_NAME: PortPeek
 
 jobs:
@@ -37,7 +37,7 @@ jobs:
         run: |
           version="${{ inputs.version }}"
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Tag must look like v1.2.3, got: $GITHUB_REF_NAME" >&2
+            echo "Version must look like 1.2.3, got: " >&2
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -47,7 +47,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           xcodebuild archive \
-            -project RunStat.xcodeproj \
+            -project PortPeek.xcodeproj \
             -scheme "$SCHEME" \
             -configuration Release \
             -sdk macosx \

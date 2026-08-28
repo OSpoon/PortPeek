@@ -1,6 +1,6 @@
 //
-//  RunStatApp.swift
-//  RunStat
+//  PortPeekApp.swift
+//  PortPeek
 //
 //  Created by OSpoon on 2026/8/27.
 //
@@ -9,7 +9,7 @@ import AppKit
 import SwiftUI
 
 @main
-struct RunStatApp: App {
+struct PortPeekApp: App {
     @StateObject private var monitor = PortMonitor()
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 

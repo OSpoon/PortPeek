@@ -67,8 +67,8 @@ PortPeek 使用 macOS 自带工具读取本机监听状态：
 
 ```sh
 xcodebuild \
-  -project RunStat.xcodeproj \
-  -scheme RunStat \
+  -project PortPeek.xcodeproj \
+  -scheme PortPeek \
   -sdk macosx \
   -configuration Debug \
   CODE_SIGNING_ALLOWED=NO \
@@ -103,9 +103,9 @@ Release Please 创建 Release PR
 
 ```text
 PortPeek/
-├── RunStat.xcodeproj/           # Xcode 工程配置（内部名称暂保留）
-├── RunStat/                     # 应用源码
-│   ├── RunStatApp.swift         # 菜单栏 App 入口
+├── PortPeek.xcodeproj/           # Xcode 工程配置
+├── PortPeek/                     # 应用源码
+│   ├── PortPeekApp.swift         # 菜单栏 App 入口
 │   ├── ContentView.swift        # 主界面、筛选与分组
 │   ├── PortRow.swift            # 端口 item、详情与操作菜单
 │   ├── PortMonitor.swift        # 刷新、扫描、解析与进程操作
@@ -116,11 +116,11 @@ PortPeek/
 └── README.md                    # 项目介绍
 ```
 
-> 当前工程内部仍保留 `RunStat` 的 Xcode 工程名、target 名和 Bundle ID；用户可见名称和构建产物已经是 `PortPeek`。这样可以避免改变现有 Bundle ID，同时让下载文件和 App 名称保持一致。
+> Xcode 工程、target、源码目录和构建产物均已统一为 `PortPeek`；Bundle ID 也已同步更新。
 
 ## 文档
 
-- [列表信息获取流程图](RunStat/LIST_DATA_FLOW.md)
+- [列表信息获取流程图](PortPeek/LIST_DATA_FLOW.md)
 - [Homebrew 分发说明](HOMEBREW.md)
 
 ## 项目状态
