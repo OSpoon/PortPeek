@@ -14,7 +14,6 @@ final class PortMonitor: ObservableObject {
 
     private var refreshTask: Task<Void, Never>?
     private var refreshTimer: Timer?
-    private var pendingTerminationIDs = Set<String>()
 
     init() {
         refresh()
@@ -41,8 +40,7 @@ final class PortMonitor: ObservableObject {
         refreshTask = Task { [weak self] in
             let result = await Self.readListeningPorts()
             guard !Task.isCancelled else { return }
-            self?.removeConfirmedTerminations(from: result.ports)
-            self?.listeningPorts = result.ports.filter { !(self?.pendingTerminationIDs.contains($0.id) ?? false) }
+            self?.listeningPorts = result.ports
             self?.lastError = result.error
             self?.isRefreshing = false
         }
@@ -56,8 +54,7 @@ final class PortMonitor: ObservableObject {
         if kill(port.pid, SIGTERM) != 0 {
             lastError = "无法结束 \(port.command)（PID \(port.pid)）。"
         } else {
-            markTerminationPending(port)
-            refreshUntilPortChanges(port)
+            refresh()
         }
     }
 
@@ -69,45 +66,7 @@ final class PortMonitor: ObservableObject {
         if kill(port.pid, SIGKILL) != 0 {
             lastError = "无法强制结束 \(port.command)（PID \(port.pid)）。"
         } else {
-            markTerminationPending(port)
-            refreshUntilPortChanges(port)
-        }
-    }
-
-    private func refreshUntilPortChanges(_ port: ListeningPort) {
-        refreshTask?.cancel()
-        isRefreshing = true
-        let portID = port.id
-        listeningPorts.removeAll { $0.id == portID }
-        refreshTask = Task { [weak self] in
-            for _ in 0..<12 {
-                let result = await Self.readListeningPorts()
-                guard !Task.isCancelled else { return }
-                if !result.ports.contains(where: { $0.id == portID }) {
-                    self?.pendingTerminationIDs.remove(portID)
-                    self?.listeningPorts = result.ports
-                    self?.lastError = result.error
-                    self?.isRefreshing = false
-                    return
-                }
-                self?.listeningPorts = result.ports.filter { !(self?.pendingTerminationIDs.contains($0.id) ?? false) }
-                self?.lastError = result.error
-                try? await Task.sleep(for: .milliseconds(150))
-            }
-            guard !Task.isCancelled else { return }
-            self?.pendingTerminationIDs.remove(portID)
-            self?.isRefreshing = false
-        }
-    }
-
-    private func markTerminationPending(_ port: ListeningPort) {
-        pendingTerminationIDs.insert(port.id)
-        listeningPorts.removeAll { $0.id == port.id }
-    }
-
-    private func removeConfirmedTerminations(from ports: [ListeningPort]) {
-        pendingTerminationIDs = pendingTerminationIDs.filter { id in
-            ports.contains(where: { $0.id == id })
+            refresh()
         }
     }
 
@@ -129,11 +88,14 @@ final class PortMonitor: ObservableObject {
                 let data = output.fileHandleForReading.readDataToEndOfFile()
                 process.waitUntilExit()
                 let text = String(decoding: data, as: UTF8.self)
-                let lsofPorts = process.terminationStatus == 0 ? parse(text) : []
+                var detailsCache = ProcessDetailsCache()
+                let lsofPorts = process.terminationStatus == 0 ? parse(text, detailsCache: &detailsCache) : []
                 let ports = lsofPorts
                 let known = Set(ports.map { "\($0.protocolName)-\($0.port)" })
-                let fallback = parseNetstat().filter { !known.contains("\($0.protocolName)-\($0.port)") }
-                let projectNames = dockerProjectNames()
+                let fallback = ports.isEmpty
+                    ? parseNetstat(detailsCache: &detailsCache).filter { !known.contains("\($0.protocolName)-\($0.port)") }
+                    : []
+                let projectNames = await dockerProjectNameCache.value()
                 let allPorts = (ports + fallback).map { port in
                     let key = "\(port.protocolName)-\(port.port)"
                     return port.withProjectName(projectNames[key] ?? projectNames[port.port])
@@ -148,7 +110,7 @@ final class PortMonitor: ObservableObject {
         }.value
     }
 
-    /// RunStat intentionally exposes only ports owned by the current user.
+    /// PortPeek intentionally exposes only ports owned by the current user.
     /// System/root services are not part of the product surface and cannot be
     /// acted on from the UI.
     nonisolated private static func isUserManagedPort(_ port: ListeningPort) -> Bool {
@@ -158,7 +120,7 @@ final class PortMonitor: ObservableObject {
         return !systemPrefixes.contains { executablePath.hasPrefix($0) }
     }
 
-    nonisolated private static func parse(_ text: String) -> [ListeningPort] {
+    nonisolated private static func parse(_ text: String, detailsCache: inout ProcessDetailsCache) -> [ListeningPort] {
         struct Aggregate {
             let command: String
             let pid: Int32
@@ -202,7 +164,7 @@ final class PortMonitor: ObservableObject {
         }
         var result: [ListeningPort] = []
         for aggregate in aggregates.values {
-            let details = processDetails(for: aggregate.pid)
+            let details = detailsCache.details(for: aggregate.pid)
             let addresses = aggregate.addresses.sorted()
             let address = addresses.joined(separator: " · ")
             result.append(ListeningPort(command: aggregate.command, pid: aggregate.pid, user: aggregate.user, protocolName: aggregate.protocolName, address: address, port: aggregate.port, isIPv6: aggregate.hasIPv6 && !aggregate.hasIPv4, isDualStack: aggregate.hasIPv4 && aggregate.hasIPv6, commandLine: details.commandLine, parentPID: details.parentPID, startedAt: details.startedAt, storedExecutablePath: details.executablePath, workingDirectory: details.workingDirectory, serviceName: serviceName(for: aggregate.port, command: "\(aggregate.command) \(details.commandLine)"), projectName: nil))
@@ -210,7 +172,7 @@ final class PortMonitor: ObservableObject {
         return result.sorted { (Int($0.port) ?? 0, $0.command) < (Int($1.port) ?? 0, $1.command) }
     }
 
-    nonisolated private static func parseNetstat() -> [ListeningPort] {
+    nonisolated private static func parseNetstat(detailsCache: inout ProcessDetailsCache) -> [ListeningPort] {
         let process = Process()
         let output = Pipe()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/netstat")
@@ -254,7 +216,7 @@ final class PortMonitor: ObservableObject {
                     processName = "system service"
                     processPID = 0
                 }
-                let details = processPID > 0 ? processDetails(for: processPID) : ProcessDetails(user: "root", commandLine: "—", parentPID: 1, startedAt: nil, executablePath: nil, workingDirectory: nil)
+                let details = processPID > 0 ? detailsCache.details(for: processPID) : ProcessDetails(user: "root", commandLine: "—", parentPID: 1, startedAt: nil, executablePath: nil, workingDirectory: nil)
                 let isIPv6 = family == "tcp6" || family == "udp6"
                 let isDualStack = family == "tcp46"
                 result.append(ListeningPort(command: processName, pid: processPID, user: details.user, protocolName: proto, address: address, port: port, isIPv6: isIPv6, isDualStack: isDualStack, commandLine: details.commandLine, parentPID: details.parentPID, startedAt: details.startedAt, storedExecutablePath: details.executablePath, workingDirectory: details.workingDirectory, serviceName: serviceName(for: port, command: "\(processName) \(details.commandLine)"), projectName: nil))
@@ -265,9 +227,26 @@ final class PortMonitor: ObservableObject {
         }
     }
 
+    private actor DockerProjectNameCache {
+        private var cachedNames: [String: String] = [:]
+        private var cachedAt: Date?
+
+        func value() -> [String: String] {
+            if let cachedAt, Date().timeIntervalSince(cachedAt) < 20 {
+                return cachedNames
+            }
+            let names = PortMonitor.queryDockerProjectNames()
+            cachedNames = names
+            cachedAt = Date()
+            return names
+        }
+    }
+
+    private static let dockerProjectNameCache = DockerProjectNameCache()
+
     /// Docker and OrbStack expose container port mappings through the Docker CLI.
     /// This is deliberately optional: a missing or stopped daemon must not block scanning.
-    nonisolated private static func dockerProjectNames() -> [String: String] {
+    nonisolated private static func queryDockerProjectNames() -> [String: String] {
         let process = Process()
         let output = Pipe()
         let dockerCandidates = [
@@ -320,6 +299,17 @@ final class PortMonitor: ObservableObject {
         let startedAt: String?
         let executablePath: String?
         let workingDirectory: String?
+    }
+
+    private struct ProcessDetailsCache {
+        private var values: [Int32: ProcessDetails] = [:]
+
+        mutating func details(for pid: Int32) -> ProcessDetails {
+            if let cached = values[pid] { return cached }
+            let details = processDetails(for: pid)
+            values[pid] = details
+            return details
+        }
     }
 
     nonisolated private static func processDetails(for pid: Int32) -> ProcessDetails {

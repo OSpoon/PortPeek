@@ -1,6 +1,6 @@
-# RunStat 列表信息获取流程
+# PortPeek 列表信息获取流程
 
-下面的流程图描述“监听端口列表”从触发刷新到最终展示的完整路径，包含主查询、补漏查询、进程详情、Docker 映射和 SwiftUI 过滤展示。
+下面的流程图描述“监听端口列表”从触发刷新到最终展示的完整路径，包含主查询、补漏查询、进程详情、Docker 映射、SwiftUI 过滤和按进程分组展示。
 
 ```mermaid
 flowchart TD
@@ -8,13 +8,10 @@ flowchart TD
     A1 -->|PortMonitor.init| B[refresh]
     A1 -->|5 秒 Timer| B
     A1 -->|用户点击刷新| B
-    A1 -->|结束进程后轮询| B2[refreshUntilPortChanges]
+    A1 -->|结束进程后| B[refresh]
 
     B --> C[取消旧 refreshTask\n设置 isRefreshing = true]
     C --> D[异步执行 readListeningPorts]
-    B2 --> D2[循环最多 12 次读取\n每次间隔 150ms]
-    D2 --> D
-
     D --> E[后台 Task.detached]
     E --> F[执行 /usr/sbin/lsof\n-nP -iTCP -sTCP:LISTEN -iUDP]
     F --> G{lsof 启动/执行成功?}
@@ -69,7 +66,7 @@ flowchart TD
     AC --> AF
     AE --> AF
     AF --> AG[清理已确认终止的 pending ID]
-    AG --> AH[过滤仍在 pendingTerminationIDs 中的记录]
+    AG --> AH[写入最新列表]
     AH --> AI[发布 listeningPorts、lastError\n设置 isRefreshing = false]
 
     AI --> AJ[ContentView 响应 @Published]
@@ -77,8 +74,9 @@ flowchart TD
     AK --> AL[按搜索词筛选\ncommand、port、address、protocol、PID]
     AL --> AM{是否有匹配记录?}
     AM -->|否| AN[展示空状态或错误状态]
-    AM -->|是| AO[ForEach 渲染 PortRow]
-    AO --> AP[摘要字段与派生信息\n应用名、图标、协议、IP、PID、目录、徽标]
+    AM -->|是| AO[按 PID 分组\n每个进程显示分组标题]
+    AO --> AO1[ForEach 渲染 PortRow]
+    AO1 --> AP[摘要字段与派生信息\n应用名、图标、协议、IP、PID、徽标]
     AP --> AQ{用户展开详情?}
     AQ -->|是| AR[展示完整字段\n地址、范围、服务、命令、路径、目录、启动时间、用户、父 PID]
     AQ -->|否| AS[保持摘要行]
@@ -98,7 +96,7 @@ flowchart TD
     classDef process fill:#eef8ee,stroke:#4b8b4b,color:#183b18;
     classDef decision fill:#fff5d9,stroke:#b88900,color:#4a3600;
     classDef output fill:#f4eaff,stroke:#8654b8,color:#2d1745;
-    class A,A1,B,B2 source;
+    class A,A1,B source;
     class F,H,H1,H2,H3,K,K1,K2,M,M2,N,O,P,Q,U,X,Y,T,T1,T2,AJ,AK,AL,AO,AP,AR,AS process;
     class G,V,AA,AD,AM,AQ decision;
     class AI,AN,AB,AC,AE,AP,AR output;
@@ -122,4 +120,4 @@ flowchart TD
 - 系统级、root、其他用户和无有效 PID 的记录在合并后直接丢弃，不进入应用列表。
 - 每条 lsof 聚合记录会额外触发一次 `ps` 和一次按 PID 的 `lsof`，因此列表详情是“端口扫描 + 进程信息补全”的组合结果。
 - Docker 查询是可选增强：找不到 Docker、daemon 未运行或命令失败时，不影响本机端口列表。
-- 刷新会取消上一次未完成的任务；结束进程后会先从界面移除目标记录，再轮询确认它不再出现。
+- 刷新会取消上一次未完成的任务；结束进程后触发一次普通刷新，后续状态由自动刷新更新。

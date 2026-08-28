@@ -22,6 +22,31 @@ struct ContentView: View {
         }
     }
 
+    private var groupedPorts: [PortGroup] {
+        let totalPortCountsByPID = Dictionary(
+            grouping: monitor.listeningPorts.filter { $0.protocolName == protocolFilter },
+            by: { $0.pid }
+        ).mapValues(\.count)
+        let groups = Dictionary(grouping: filteredPorts) { port in
+            String(port.pid)
+        }
+        return groups.values
+            .map { ports in
+                PortGroup(
+                    id: String(ports[0].pid),
+                    ports: ports.sorted { (Int($0.port) ?? 0) < (Int($1.port) ?? 0) },
+                    totalCount: totalPortCountsByPID[ports[0].pid] ?? ports.count
+                )
+            }
+            .sorted { lhs, rhs in
+                let lhsPort = Int(lhs.ports.first?.port ?? "") ?? 0
+                let rhsPort = Int(rhs.ports.first?.port ?? "") ?? 0
+                return lhsPort == rhsPort
+                    ? (lhs.ports.first?.displayName ?? "") < (rhs.ports.first?.displayName ?? "")
+                    : lhsPort < rhsPort
+            }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             protocolBar
@@ -79,8 +104,8 @@ struct ContentView: View {
                     .buttonStyle(.plain).foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 16)
-        .frame(height: 44)
+        .padding(.horizontal, 10)
+        .frame(height: 38)
     }
 
     private var portList: some View {
@@ -96,21 +121,16 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity).padding(.vertical, 64)
                 .listRowBackground(Color.clear)
             } else {
-                ForEach(filteredPorts) { port in
-                    PortRow(
-                        port: port,
-                        isExpanded: expandedPort == port.id,
-                        onToggle: {
-                            selectedPortID = port.id
-                            expandedPort = expandedPort == port.id ? nil : port.id
-                        },
-                        onStop: { monitor.stop(port) },
-                        onForceStop: { monitor.forceStop(port) }
-                    )
-                    .tag(port.id)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                    .listRowSeparator(.visible)
-                    .listRowSeparatorTint(Color.primary.opacity(0.12))
+                ForEach(groupedPorts) { group in
+                    Section {
+                        portRows(for: group.ports)
+                    } header: {
+                        PortGroupHeader(
+                            port: group.ports[0],
+                            count: group.ports.count,
+                            totalCount: group.totalCount
+                        )
+                    }
                 }
             }
         }
@@ -121,6 +141,25 @@ struct ContentView: View {
         .environment(\.defaultMinListRowHeight, 0)
     }
 
+    @ViewBuilder
+    private func portRows(for ports: [ListeningPort]) -> some View {
+        ForEach(ports) { port in
+            PortRow(
+                port: port,
+                isExpanded: expandedPort == port.id,
+                onToggle: {
+                    selectedPortID = port.id
+                    expandedPort = expandedPort == port.id ? nil : port.id
+                },
+                onStop: { monitor.stop(port) },
+                onForceStop: { monitor.forceStop(port) }
+            )
+            .tag(port.id)
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+            .listRowSeparator(.hidden)
+        }
+    }
+
     private var footer: some View {
         HStack {
             Label("仅本机", systemImage: "lock.shield")
@@ -129,5 +168,47 @@ struct ContentView: View {
                 .buttonStyle(.plain).foregroundStyle(.secondary)
         }
         .font(.caption2).padding(.horizontal, 18).padding(.vertical, 10)
+    }
+}
+
+private struct PortGroup: Identifiable {
+    let id: String
+    let ports: [ListeningPort]
+    let totalCount: Int
+}
+
+private struct PortGroupHeader: View {
+    let port: ListeningPort
+    let count: Int
+    let totalCount: Int
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let appIcon = port.appIcon {
+                Image(nsImage: appIcon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
+            } else {
+                Image(systemName: "square.stack.3d.up.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text(port.displayName)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+            Text("PID \(port.pid)")
+                .font(.caption2.monospaced())
+                .foregroundStyle(.secondary)
+            Text(count == totalCount
+                ? String(count) + " 个端口"
+                : "匹配 " + String(count) + " / 共 " + String(totalCount) + " 个端口")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 4)
+        }
+        .textCase(nil)
+        .padding(.vertical, 3)
+        .listRowSeparator(.hidden)
     }
 }

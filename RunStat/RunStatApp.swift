@@ -18,7 +18,7 @@ struct RunStatApp: App {
             ContentView(monitor: monitor)
         } label: {
             Label {
-                Text(monitor.listeningPorts.isEmpty ? "RunStat" : "RunStat · \(monitor.listeningPorts.count)")
+                Text(monitor.listeningPorts.isEmpty ? "PortPeek" : "PortPeek · \(monitor.listeningPorts.count)")
             } icon: {
                 Image(systemName: "dot.radiowaves.left.and.right")
             }

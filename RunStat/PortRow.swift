@@ -42,7 +42,6 @@ struct PortRow: View {
                         }
                         if port.isExposed { Image(systemName: "wifi").font(.caption2).foregroundStyle(.orange).help("对外开放") }
                         if port.isLaunchdManaged { Image(systemName: "arrow.clockwise").font(.caption2).foregroundStyle(.secondary).help("由 launchd 托管，结束后会自动重启") }
-                        if port.isRootOrSystemProcess { Image(systemName: "gearshape.fill").font(.caption2).foregroundStyle(.secondary).help("系统进程") }
                     }
                     HStack(spacing: 6) {
                         Text(port.port).font(.system(.subheadline, design: .monospaced).weight(.semibold)).lineLimit(1).fixedSize()
@@ -74,6 +73,11 @@ struct PortRow: View {
         // Keep the summary row anchored; expansion only appends details below it.
         .padding(.vertical, 7)
         .padding(.horizontal, 8)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.primary.opacity(0.12))
+                .frame(height: 0.5)
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .topTrailing) {
             Button { onToggle() } label: {
@@ -97,7 +101,7 @@ struct PortRow: View {
             isPresented: $showingForceStopConfirmation,
             titleVisibility: .visible
         ) {
-            Button("强制结束 (port.command)（PID (port.pid)）", role: .destructive) {
+            Button("强制结束 " + port.command + "（PID " + String(port.pid) + "）", role: .destructive) {
                 onForceStop()
             }
             Button("取消", role: .cancel) {}
@@ -153,12 +157,8 @@ struct PortRow: View {
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 7) {
-            if port.isLaunchdManaged && !port.isRootOrSystemProcess {
+            if port.isLaunchdManaged {
                 launchdWarning
-            } else if port.isRootOrSystemProcess {
-                Label("系统进程受保护，结束前请确认不会影响系统功能。", systemImage: "exclamationmark.triangle")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.orange)
             }
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
             GridRow { Text("绑定地址").foregroundStyle(.secondary); Text(port.address.isEmpty ? "*" : port.address) }
