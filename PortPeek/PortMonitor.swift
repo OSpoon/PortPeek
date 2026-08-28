@@ -20,7 +20,7 @@ final class PortMonitor: ObservableObject {
         startRefreshTimer()
     }
 
-    deinit {
+    isolated deinit {
         refreshTask?.cancel()
         refreshTimer?.invalidate()
     }
@@ -304,7 +304,9 @@ final class PortMonitor: ObservableObject {
     private struct ProcessDetailsCache {
         private var values: [Int32: ProcessDetails] = [:]
 
-        mutating func details(for pid: Int32) -> ProcessDetails {
+        nonisolated init() {}
+
+        nonisolated mutating func details(for pid: Int32) -> ProcessDetails {
             if let cached = values[pid] { return cached }
             let details = processDetails(for: pid)
             values[pid] = details
