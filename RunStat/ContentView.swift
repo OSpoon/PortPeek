@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var protocolFilter = "TCP"
     @State private var expandedPort: String?
+    @FocusState private var isSearchFocused: Bool
 
     private var filteredPorts: [ListeningPort] {
         monitor.listeningPorts.filter { port in
@@ -31,6 +32,11 @@ struct ContentView: View {
         .frame(width: 360, height: 510)
         .background(.clear)
         .containerBackground(.regularMaterial, for: .window)
+        .onAppear {
+            Task { @MainActor in
+                isSearchFocused = true
+            }
+        }
     }
 
     private var protocolBar: some View {
@@ -64,7 +70,9 @@ struct ContentView: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("按端口号或进程名筛选", text: $searchText).textFieldStyle(.plain)
+            TextField("按端口号或进程名筛选", text: $searchText)
+                .textFieldStyle(.plain)
+                .focused($isSearchFocused)
             if !searchText.isEmpty {
                 Button { searchText = "" } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain).foregroundStyle(.secondary)

@@ -72,7 +72,7 @@ struct PortRow: View {
                     .buttonStyle(.plain).foregroundStyle(.secondary)
                     .padding(.top, 4)
                 stopControl
-                    .padding(.top, 1)
+                    .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if isExpanded { details }
@@ -169,6 +169,7 @@ struct PortRow: View {
                 isConfirmingStop = true
             } label: {
                 Image(systemName: port.isRootOrSystemProcess ? "lock.circle" : "stop.circle")
+                    .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain).foregroundStyle(port.isOwnedByCurrentUser ? .red : .secondary)
             .help(port.isRootOrSystemProcess ? "系统进程：结束前查看保护提示" : "准备结束进程")
