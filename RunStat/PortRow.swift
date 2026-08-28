@@ -12,8 +12,8 @@ struct PortRow: View {
     let onToggle: () -> Void
     let onStop: () -> Void
     let onForceStop: () -> Void
-    @State private var isHovered = false
-    @State private var isConfirmingStop = false
+
+    @State private var showingForceStopConfirmation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -31,12 +31,13 @@ struct PortRow: View {
                     HStack(spacing: 5) {
                         Text(port.displayName).font(.body.weight(.medium)).lineLimit(1).truncationMode(.tail)
                         if let identityBadge = port.identityBadge {
+                            let identityColor = port.projectName == nil ? badgeColor(for: identityBadge) : Color.cyan
                             Text(identityBadge)
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(badgeColor(for: identityBadge))
+                                .foregroundStyle(identityColor)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 3)
-                                .background(badgeColor(for: identityBadge).opacity(0.14), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                                .background(identityColor.opacity(0.16), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
                                 .lineLimit(1)
                         }
                         if port.isExposed { Image(systemName: "wifi").font(.caption2).foregroundStyle(.orange).help("对外开放") }
@@ -46,68 +47,63 @@ struct PortRow: View {
                     HStack(spacing: 6) {
                         Text(port.port).font(.system(.subheadline, design: .monospaced).weight(.semibold)).lineLimit(1).fixedSize()
                         Text(port.protocolName).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1).fixedSize()
-                        Text(port.isDualStack ? "IPv4·IPv6" : (port.isIPv6 ? "IPv6" : "IPv4")).font(.caption2).foregroundStyle(.secondary).lineLimit(1).fixedSize()
+                        Text(port.isDualStack ? "IPv4·IPv6" : (port.isIPv6 ? "IPv6" : "IPv4"))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .fixedSize()
                         Text("PID \(String(port.pid))").font(.caption2.monospaced()).foregroundStyle(.secondary).lineLimit(1).fixedSize()
                         Text("·").foregroundStyle(.tertiary).fixedSize()
-                        Text(port.address.isEmpty ? "*" : port.address).font(.caption2.monospaced()).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle).layoutPriority(-1)
+                        Text(port.address.isEmpty ? "*" : port.address)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .layoutPriority(-1)
                     }
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
                     .allowsTightening(true)
-                    if let workingDirectory = port.workingDirectory, workingDirectory != "/" {
-                        Label(shortPath(workingDirectory), systemImage: "folder.fill")
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Spacer(minLength: 6)
-                Button { onToggle() } label: {
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 9, weight: .medium))
-                        .frame(width: 24, height: 24)
-                }
-                    .buttonStyle(.plain).foregroundStyle(.secondary)
-                    .padding(.top, 4)
-                stopControl
-                    .padding(.top, 4)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.trailing, 42)
             if isExpanded { details }
         }
         // Keep the summary row anchored; expansion only appends details below it.
         .padding(.vertical, 7)
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background((isExpanded || isHovered) ? Color.accentColor.opacity(0.14) : Color.clear)
-        .onHover { isHovered = $0 }
+        .overlay(alignment: .topTrailing) {
+            Button { onToggle() } label: {
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 9, weight: .medium))
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
+            .padding(.trailing, 8)
+        }
         .contentShape(Rectangle())
         .onTapGesture(perform: onToggle)
         .accessibilityAddTraits(.isButton)
         .contextMenu {
-            if port.isRootOrSystemProcess {
-                systemContextMenu
-            } else {
-                applicationContextMenu
-            }
+            applicationContextMenu
         }
-    }
-
-    @ViewBuilder
-    private var systemContextMenu: some View {
-        Button("在 Finder 中显示") { revealInFinder() }
-            .disabled(port.executableURL == nil)
-        Divider()
-        Button("复制 localhost:\(port.port)") { copy("localhost:\(port.port)") }
-        Button("拷贝 PID") { copy(String(port.pid)) }
-        Button("拷贝端口号") { copy(port.port) }
-        Divider()
-        Button("结束进程") { onStop() }
-            .disabled(!port.isOwnedByCurrentUser)
-        Button("强制结束 (SIGKILL)") { onForceStop() }
-            .disabled(!port.isOwnedByCurrentUser)
+        .confirmationDialog(
+            "强制结束进程？",
+            isPresented: $showingForceStopConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("强制结束 (port.command)（PID (port.pid)）", role: .destructive) {
+                onForceStop()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("SIGKILL 会立即终止进程，进程来不及保存数据或执行清理操作。")
+        }
     }
 
     @ViewBuilder
@@ -131,53 +127,40 @@ struct PortRow: View {
             .disabled(port.workingDirectory == nil)
         Button("拷贝 PID") { copy(String(port.pid)) }
         Button("拷贝端口号") { copy(port.port) }
+        if port.isLaunchdManaged {
+            Divider()
+            Button("打开“登录项与扩展”设置") { openLoginItemsSettings() }
+        }
         Divider()
-        Button("结束进程") { onStop() }
-            .disabled(!port.isOwnedByCurrentUser)
-        Button("强制结束 (SIGKILL)") { onForceStop() }
-            .disabled(!port.isOwnedByCurrentUser)
-    }
-
-    @ViewBuilder
-    private var stopControl: some View {
-        if isConfirmingStop {
-            VStack(alignment: .trailing, spacing: 3) {
-                if port.isRootOrSystemProcess {
-                    Text("系统进程受保护")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.red)
-                } else if port.isLaunchdManaged {
-                    Text("结束后会自动重启")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.orange)
-                }
-                Button {
-                    isConfirmingStop = false
-                    onStop()
-                } label: {
-                    Text("结束").font(.caption.weight(.semibold)).foregroundStyle(.white)
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(.red, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .disabled(port.isRootOrSystemProcess)
+        Menu("结束进程") {
+            Button("正常结束") { onStop() }
+            Button("强制结束 (SIGKILL)", role: .destructive) {
+                showingForceStopConfirmation = true
             }
-            Button { isConfirmingStop = false } label: { Image(systemName: "xmark") }
-                .buttonStyle(.plain).foregroundStyle(.secondary).help("取消")
-        } else {
-            Button {
-                isConfirmingStop = true
-            } label: {
-                Image(systemName: port.isRootOrSystemProcess ? "lock.circle" : "stop.circle")
-                    .frame(width: 24, height: 24)
-            }
-            .buttonStyle(.plain).foregroundStyle(port.isOwnedByCurrentUser ? .red : .secondary)
-            .help(port.isRootOrSystemProcess ? "系统进程：结束前查看保护提示" : "准备结束进程")
         }
     }
 
+    private var launchdWarning: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("此进程由系统守护，结束后会自动重启。要彻底停用，请在“登录项与扩展”列表中关闭它所属 App。", systemImage: "info.circle")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.trailing, 4)
+    }
+
     private var details: some View {
-        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+        VStack(alignment: .leading, spacing: 7) {
+            if port.isLaunchdManaged && !port.isRootOrSystemProcess {
+                launchdWarning
+            } else if port.isRootOrSystemProcess {
+                Label("系统进程受保护，结束前请确认不会影响系统功能。", systemImage: "exclamationmark.triangle")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.orange)
+            }
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
             GridRow { Text("绑定地址").foregroundStyle(.secondary); Text(port.address.isEmpty ? "*" : port.address) }
             GridRow { Text("网络范围").foregroundStyle(.secondary); Text(port.isExposed ? "对外开放" : "仅本机").foregroundStyle(port.isExposed ? .orange : .secondary) }
             if let serviceName = port.serviceName {
@@ -196,6 +179,7 @@ struct PortRow: View {
                     Text(port.parentPID.map(String.init) ?? "—")
                 }
             }
+            }
         }
         .font(.caption.monospaced())
         .padding(.leading, 34)
@@ -205,11 +189,6 @@ struct PortRow: View {
     private func copy(_ value: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(value, forType: .string)
-    }
-
-    private func shortPath(_ path: String) -> String {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return path.hasPrefix(home) ? "~" + path.dropFirst(home.count) : path
     }
 
     private func badgeColor(for badge: String) -> Color {
@@ -225,6 +204,11 @@ struct PortRow: View {
     private func revealInFinder() {
         guard let url = port.executableURL else { return }
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    private func openLoginItemsSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") else { return }
+        NSWorkspace.shared.open(url)
     }
 
     private func openInTerminal() {

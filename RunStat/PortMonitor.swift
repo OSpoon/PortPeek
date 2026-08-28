@@ -14,6 +14,7 @@ final class PortMonitor: ObservableObject {
 
     private var refreshTask: Task<Void, Never>?
     private var refreshTimer: Timer?
+    private var pendingTerminationIDs = Set<String>()
 
     init() {
         refresh()
@@ -27,7 +28,7 @@ final class PortMonitor: ObservableObject {
 
     private func startRefreshTimer() {
         refreshTimer?.invalidate()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.refresh()
             }
@@ -40,7 +41,8 @@ final class PortMonitor: ObservableObject {
         refreshTask = Task { [weak self] in
             let result = await Self.readListeningPorts()
             guard !Task.isCancelled else { return }
-            self?.listeningPorts = result.ports
+            self?.removeConfirmedTerminations(from: result.ports)
+            self?.listeningPorts = result.ports.filter { !(self?.pendingTerminationIDs.contains($0.id) ?? false) }
             self?.lastError = result.error
             self?.isRefreshing = false
         }
@@ -48,25 +50,64 @@ final class PortMonitor: ObservableObject {
 
     func stop(_ port: ListeningPort) {
         guard port.isOwnedByCurrentUser else {
-            lastError = "系统进程受保护，无法结束。"
+            lastError = "仅支持结束当前用户拥有的进程。"
             return
         }
         if kill(port.pid, SIGTERM) != 0 {
             lastError = "无法结束 \(port.command)（PID \(port.pid)）。"
         } else {
-            refresh()
+            markTerminationPending(port)
+            refreshUntilPortChanges(port)
         }
     }
 
     func forceStop(_ port: ListeningPort) {
         guard port.isOwnedByCurrentUser else {
-            lastError = "系统进程受保护，无法结束。"
+            lastError = "仅支持强制结束当前用户拥有的进程。"
             return
         }
         if kill(port.pid, SIGKILL) != 0 {
             lastError = "无法强制结束 \(port.command)（PID \(port.pid)）。"
         } else {
-            refresh()
+            markTerminationPending(port)
+            refreshUntilPortChanges(port)
+        }
+    }
+
+    private func refreshUntilPortChanges(_ port: ListeningPort) {
+        refreshTask?.cancel()
+        isRefreshing = true
+        let portID = port.id
+        listeningPorts.removeAll { $0.id == portID }
+        refreshTask = Task { [weak self] in
+            for _ in 0..<12 {
+                let result = await Self.readListeningPorts()
+                guard !Task.isCancelled else { return }
+                if !result.ports.contains(where: { $0.id == portID }) {
+                    self?.pendingTerminationIDs.remove(portID)
+                    self?.listeningPorts = result.ports
+                    self?.lastError = result.error
+                    self?.isRefreshing = false
+                    return
+                }
+                self?.listeningPorts = result.ports.filter { !(self?.pendingTerminationIDs.contains($0.id) ?? false) }
+                self?.lastError = result.error
+                try? await Task.sleep(for: .milliseconds(150))
+            }
+            guard !Task.isCancelled else { return }
+            self?.pendingTerminationIDs.remove(portID)
+            self?.isRefreshing = false
+        }
+    }
+
+    private func markTerminationPending(_ port: ListeningPort) {
+        pendingTerminationIDs.insert(port.id)
+        listeningPorts.removeAll { $0.id == port.id }
+    }
+
+    private func removeConfirmedTerminations(from ports: [ListeningPort]) {
+        pendingTerminationIDs = pendingTerminationIDs.filter { id in
+            ports.contains(where: { $0.id == id })
         }
     }
 
@@ -94,8 +135,9 @@ final class PortMonitor: ObservableObject {
                 let fallback = parseNetstat().filter { !known.contains("\($0.protocolName)-\($0.port)") }
                 let projectNames = dockerProjectNames()
                 let allPorts = (ports + fallback).map { port in
-                    port.withProjectName(projectNames[port.port])
-                }
+                    let key = "\(port.protocolName)-\(port.port)"
+                    return port.withProjectName(projectNames[key] ?? projectNames[port.port])
+                }.filter { isUserManagedPort($0) }
                 if allPorts.isEmpty && process.terminationStatus != 0 {
                     return ScanResult(ports: [], error: "无法读取监听端口，请检查系统权限。")
                 }
@@ -104,6 +146,16 @@ final class PortMonitor: ObservableObject {
                 return ScanResult(ports: [], error: "端口扫描失败：\(error.localizedDescription)")
             }
         }.value
+    }
+
+    /// RunStat intentionally exposes only ports owned by the current user.
+    /// System/root services are not part of the product surface and cannot be
+    /// acted on from the UI.
+    nonisolated private static func isUserManagedPort(_ port: ListeningPort) -> Bool {
+        guard port.pid > 1, port.user == NSUserName() else { return false }
+        guard let executablePath = port.storedExecutablePath else { return true }
+        let systemPrefixes = ["/System/", "/usr/libexec/", "/usr/sbin/"]
+        return !systemPrefixes.contains { executablePath.hasPrefix($0) }
     }
 
     nonisolated private static func parse(_ text: String) -> [ListeningPort] {
@@ -218,8 +270,16 @@ final class PortMonitor: ObservableObject {
     nonisolated private static func dockerProjectNames() -> [String: String] {
         let process = Process()
         let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["docker", "ps", "--format", "{{.Names}}\t{{.Ports}}"]
+        let dockerCandidates = [
+            "/opt/homebrew/bin/docker",
+            "/usr/local/bin/docker",
+            "/usr/bin/docker"
+        ]
+        guard let dockerPath = dockerCandidates.first(where: FileManager.default.isExecutableFile(atPath:)) else {
+            return [:]
+        }
+        process.executableURL = URL(fileURLWithPath: dockerPath)
+        process.arguments = ["ps", "--format", "{{.Names}}\t{{.Ports}}"]
         process.standardOutput = output
         process.standardError = Pipe()
         do {
@@ -227,7 +287,7 @@ final class PortMonitor: ObservableObject {
             let data = output.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
             guard process.terminationStatus == 0 else { return [:] }
-            var result: [String: String] = [:]
+            var result: [String: Set<String>] = [:]
             for line in String(decoding: data, as: UTF8.self).split(whereSeparator: \.isNewline) {
                 let columns = line.split(separator: "\t", maxSplits: 1).map(String.init)
                 guard columns.count == 2 else { continue }
@@ -237,10 +297,17 @@ final class PortMonitor: ObservableObject {
                     guard let separator = left.lastIndex(of: ":") else { continue }
                     let port = String(left[left.index(after: separator)...])
                     guard port.allSatisfy(\.isNumber) else { continue }
-                    result[port] = name
+                    let protocolName = mapping.lowercased().contains("/udp") ? "UDP" : "TCP"
+                    result["\(protocolName)-\(port)", default: []].insert(name)
                 }
             }
-            return result
+            return result.reduce(into: [String: String]()) { result, item in
+                let names = item.value.sorted().joined(separator: " · ")
+                result[item.key] = names
+                if let port = item.key.split(separator: "-").last {
+                    result[String(port)] = names
+                }
+            }
         } catch {
             return [:]
         }

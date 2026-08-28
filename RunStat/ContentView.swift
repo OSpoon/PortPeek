@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var protocolFilter = "TCP"
     @State private var expandedPort: String?
+    @State private var selectedPortID: String?
     @FocusState private var isSearchFocused: Bool
 
     private var filteredPorts: [ListeningPort] {
@@ -83,8 +84,7 @@ struct ContentView: View {
     }
 
     private var portList: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
+        List(selection: $selectedPortID) {
             if filteredPorts.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: monitor.lastError == nil && searchText.isEmpty ? "checkmark.shield" : "exclamationmark.triangle")
@@ -93,31 +93,39 @@ struct ContentView: View {
                     Text(monitor.lastError == nil ? (searchText.isEmpty ? "当前没有正在监听的 TCP 或 UDP 端口。" : "请尝试其他端口号或进程名。") : "请点击刷新重试。")
                         .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
-                .frame(maxWidth: .infinity).padding(.vertical, 64).listRowBackground(Color.clear)
+                .frame(maxWidth: .infinity).padding(.vertical, 64)
+                .listRowBackground(Color.clear)
             } else {
                 ForEach(filteredPorts) { port in
-                    VStack(spacing: 0) {
-                        PortRow(port: port, isExpanded: expandedPort == port.id, onToggle: { expandedPort = expandedPort == port.id ? nil : port.id }, onStop: { monitor.stop(port) }, onForceStop: { monitor.forceStop(port) })
-                        Rectangle()
-                            .fill(Color.primary.opacity(0.12))
-                            .padding(.leading, 54)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 1)
-                    }
-                    .frame(maxWidth: .infinity)
+                    PortRow(
+                        port: port,
+                        isExpanded: expandedPort == port.id,
+                        onToggle: {
+                            selectedPortID = port.id
+                            expandedPort = expandedPort == port.id ? nil : port.id
+                        },
+                        onStop: { monitor.stop(port) },
+                        onForceStop: { monitor.forceStop(port) }
+                    )
+                    .tag(port.id)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    .listRowSeparator(.visible)
+                    .listRowSeparatorTint(Color.primary.opacity(0.12))
                 }
             }
-            }
-            .padding(.horizontal, 0)
         }
-        .scrollIndicators(.automatic)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .contentMargins(.horizontal, 0, for: .scrollContent)
+        .contentMargins(.vertical, 0, for: .scrollContent)
+        .environment(\.defaultMinListRowHeight, 0)
     }
 
     private var footer: some View {
         HStack {
             Label("仅本机", systemImage: "lock.shield")
             Spacer()
-            Button("退出 RunStat") { NSApplication.shared.terminate(nil) }
+            Button("退出") { NSApplication.shared.terminate(nil) }
                 .buttonStyle(.plain).foregroundStyle(.secondary)
         }
         .font(.caption2).padding(.horizontal, 18).padding(.vertical, 10)
