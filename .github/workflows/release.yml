@@ -10,8 +10,7 @@ permissions:
 
 env:
   SCHEME: RunStat
-  APP_NAME: RunStat
-  BUNDLE_ID: com.ospoon.RunStat
+  APP_NAME: PortPeek
 
 jobs:
   release:
@@ -65,17 +64,17 @@ jobs:
           lipo -info "$app/Contents/MacOS/$APP_NAME"
           mkdir -p dist/Casks
           sha256=$(cat "dist/$APP_NAME-$VERSION.sha256")
-          cat > "dist/Casks/runstat.rb" <<EOF
-          cask "runstat" do
+          cat > "dist/Casks/portpeek.rb" <<EOF
+          cask "portpeek" do
             version "${VERSION}"
             sha256 "${sha256}"
 
-            url "https://github.com/${GITHUB_REPOSITORY}/releases/download/v#{version}/RunStat-#{version}.zip"
-            name "RunStat"
+            url "https://github.com/${GITHUB_REPOSITORY}/releases/download/v#{version}/PortPeek-#{version}.zip"
+            name "PortPeek"
             desc "Lightweight macOS menu bar monitor for listening TCP and UDP ports"
             homepage "https://github.com/${GITHUB_REPOSITORY}"
 
-            app "RunStat.app"
+            app "PortPeek.app"
           end
           EOF
           echo "sha256=$(cat dist/$APP_NAME-$VERSION.sha256)" >> "$GITHUB_OUTPUT"
@@ -88,7 +87,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             "dist/$APP_NAME-$VERSION.zip" \
             "dist/$APP_NAME-$VERSION.sha256" \
-            --title "RunStat $VERSION" \
+            --title "PortPeek $VERSION" \
             --generate-notes
 
       - name: Upload release metadata

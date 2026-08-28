@@ -12,28 +12,28 @@
 
 3. `Release macOS app` 会自动构建 Universal macOS App，生成 ZIP、SHA-256 和 GitHub Release。
 
-每次 Release 会在构件中生成已经填好版本号和 SHA-256 的 `Casks/runstat.rb`。将它复制到 Homebrew 的 `Casks/` 目录后提交官方 Cask PR。
+每次 Release 会在构件中生成已经填好版本号和 SHA-256 的 `Casks/portpeek.rb`。将它复制到 Homebrew 的 `Casks/` 目录后提交官方 Cask PR。
 
-Homebrew Cask 模板位于 `packaging/homebrew/Casks/runstat.rb`。正式 Cask 应把 `version` 和 `sha256` 更新为 Release 产物的实际值：
+Homebrew Cask 模板位于 `packaging/homebrew/Casks/portpeek.rb`。正式 Cask 应把 `version` 和 `sha256` 更新为 Release 产物的实际值：
 
 ```ruby
-cask "runstat" do
+cask "portpeek" do
   version "1.0.0"
-  sha256 "<dist/RunStat-1.0.0.sha256 的内容>"
+  sha256 "<dist/PortPeek-1.0.0.sha256 的内容>"
 
-  url "https://github.com/OSpoon/PortPeek/releases/download/v#{version}/RunStat-#{version}.zip"
-  name "RunStat"
+  url "https://github.com/OSpoon/PortPeek/releases/download/v#{version}/PortPeek-#{version}.zip"
+  name "PortPeek"
   desc "Lightweight macOS menu bar monitor for listening TCP and UDP ports"
   homepage "https://github.com/OSpoon/PortPeek"
 
-  app "RunStat.app"
+  app "PortPeek.app"
 end
 ```
 
 在官方 Cask PR 合并后，用户可以直接安装：
 
 ```sh
-brew install --cask runstat
+brew install --cask portpeek
 ```
 
 ## 签名状态

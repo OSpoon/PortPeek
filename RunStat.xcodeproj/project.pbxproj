@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		70E0497530407EA4008A313F /* RunStat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RunStat.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		70E0497530407EA4008A313F /* PortPeek.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PortPeek.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -40,7 +40,7 @@
 		70E0497630407EA4008A313F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				70E0497530407EA4008A313F /* RunStat.app */,
+				70E0497530407EA4008A313F /* PortPeek.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -66,8 +66,8 @@
 			name = RunStat;
 			packageProductDependencies = (
 			);
-			productName = RunStat;
-			productReference = 70E0497530407EA4008A313F /* RunStat.app */;
+			productName = PortPeek;
+			productReference = 70E0497530407EA4008A313F /* PortPeek.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -264,7 +264,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ospoon.RunStat;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = PortPeek;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -296,7 +296,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ospoon.RunStat;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = PortPeek;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

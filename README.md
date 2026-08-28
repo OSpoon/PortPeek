@@ -81,7 +81,7 @@ PortPeek 使用菜单栏应用模式运行，不会在 Dock 中显示普通应�
 
 ```text
 PortPeek/
-├── RunStat.xcodeproj/           # Xcode 工程配置
+├── RunStat.xcodeproj/           # Xcode 工程配置（内部名称暂保留）
 ├── RunStat/                     # 应用源码
 │   ├── RunStatApp.swift         # 菜单栏 App 入口
 │   ├── ContentView.swift        # 主界面、筛选与分组
@@ -94,7 +94,7 @@ PortPeek/
 └── README.md                    # 项目介绍
 ```
 
-> 当前工程内部仍保留 `RunStat` 的 Xcode 工程名、target 名和 Bundle ID；用户可见名称已经是 `PortPeek`。这样可以避免改变现有构建和发布标识。
+> 当前工程内部仍保留 `RunStat` 的 Xcode 工程名、target 名和 Bundle ID；用户可见名称和构建产物已经是 `PortPeek`。这样可以避免改变现有 Bundle ID，同时让下载文件和 App 名称保持一致。
 
 ## 文档
 
