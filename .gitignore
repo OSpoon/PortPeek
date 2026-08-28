@@ -1,0 +1,12 @@
+.DS_Store
+
+# Xcode build output
+DerivedData/
+build/
+dist/
+*.xcarchive
+
+# Swift / Xcode user state
+xcuserdata/
+*.xcuserstate
+
