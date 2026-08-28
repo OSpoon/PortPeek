@@ -77,6 +77,28 @@ xcodebuild \
 
 PortPeek 使用菜单栏应用模式运行，不会在 Dock 中显示普通应用窗口。
 
+## 自动发布
+
+项目使用 GitHub Actions 和 Release Please 自动管理版本与发布：
+
+```text
+提交 feat / fix
+      ↓
+Release Please 创建 Release PR
+      ↓
+合并 Release PR
+      ↓
+自动更新 VERSION 与 CHANGELOG
+      ↓
+创建版本 tag 和 GitHub Release
+      ↓
+构建 Universal PortPeek.app 并上传 ZIP / SHA-256
+```
+
+版本号遵循 Conventional Commits：`fix:` 发布 patch，`feat:` 发布 minor，带有 `BREAKING CHANGE` 或 `!` 的提交发布 major。
+
+当前发布产物为未签名 ZIP，适合内部测试和早期分发。正式公开分发前，需要在 GitHub Secrets 中配置 Apple Developer ID 签名与公证凭据。
+
 ## 项目结构
 
 ```text

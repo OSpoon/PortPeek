@@ -2,15 +2,9 @@
 
 ## 发布流程
 
-1. 合并代码到 `main`。
-2. 创建并推送版本标签，例如：
-
-   ```sh
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-
-3. `Release macOS app` 会自动构建 Universal macOS App，生成 ZIP、SHA-256 和 GitHub Release。
+1. 使用 `feat:`、`fix:` 或带破坏性变更标记的 Conventional Commit 合并到 `main`。
+2. Release Please 自动创建或更新 Release PR。
+3. 合并 Release PR 后，自动更新版本、创建 tag、构建 Universal macOS App，并生成 ZIP、SHA-256 和 GitHub Release。
 
 每次 Release 会在构件中生成已经填好版本号和 SHA-256 的 `Casks/portpeek.rb`。将它复制到 Homebrew 的 `Casks/` 目录后提交官方 Cask PR。
 

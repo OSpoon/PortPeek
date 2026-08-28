@@ -1,9 +1,14 @@
 name: Release macOS app
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_call:
+    inputs:
+      tag_name:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -18,6 +23,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag_name }}
 
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -28,7 +35,7 @@ jobs:
         id: version
         shell: bash
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${{ inputs.version }}"
           if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
             echo "Tag must look like v1.2.3, got: $GITHUB_REF_NAME" >&2
             exit 1
@@ -84,11 +91,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          gh release upload "${{ inputs.tag_name }}" \
             "dist/$APP_NAME-$VERSION.zip" \
             "dist/$APP_NAME-$VERSION.sha256" \
-            --title "PortPeek $VERSION" \
-            --generate-notes
+            --clobber
 
       - name: Upload release metadata
         uses: actions/upload-artifact@v4
