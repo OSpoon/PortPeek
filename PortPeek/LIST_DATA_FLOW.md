@@ -70,7 +70,7 @@ flowchart TD
     AH --> AI[发布 listeningPorts、lastError\n设置 isRefreshing = false]
 
     AI --> AJ[ContentView 响应 @Published]
-    AJ --> AK[按 protocolFilter 筛选 TCP / UDP]
+    AJ --> AK[合并 TCP / UDP 记录]
     AK --> AL[按搜索词筛选\ncommand、port、address、protocol、PID]
     AL --> AM{是否有匹配记录?}
     AM -->|否| AN[展示空状态或错误状态]

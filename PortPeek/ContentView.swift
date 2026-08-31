@@ -9,24 +9,19 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject var monitor: PortMonitor
     @State private var searchText = ""
-    @State private var protocolFilter = "TCP"
     @State private var expandedPort: String?
     @State private var selectedPortID: String?
     @FocusState private var isSearchFocused: Bool
 
     private var filteredPorts: [ListeningPort] {
         monitor.listeningPorts.filter { port in
-            let matchesProtocol = port.protocolName == protocolFilter
             let matchesSearch = searchText.isEmpty || [port.command, port.port, port.address, port.protocolName, String(port.pid)].contains { $0.localizedCaseInsensitiveContains(searchText) }
-            return matchesProtocol && matchesSearch
+            return matchesSearch
         }
     }
 
     private var groupedPorts: [PortGroup] {
-        let totalPortCountsByPID = Dictionary(
-            grouping: monitor.listeningPorts.filter { $0.protocolName == protocolFilter },
-            by: { $0.pid }
-        ).mapValues(\.count)
+        let totalPortCountsByPID = Dictionary(grouping: monitor.listeningPorts, by: { $0.pid }).mapValues(\.count)
         let groups = Dictionary(grouping: filteredPorts) { port in
             String(port.pid)
         }
@@ -49,9 +44,8 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            protocolBar
+            toolbar
             Divider().overlay(Color.primary.opacity(0.12))
-            searchField
             portList
             footer
         }
@@ -65,16 +59,9 @@ struct ContentView: View {
         }
     }
 
-    private var protocolBar: some View {
-        HStack(spacing: 12) {
-            Picker("协议", selection: $protocolFilter) {
-            Text("TCP \(monitor.listeningPorts.filter { $0.protocolName == "TCP" }.count)").tag("TCP")
-            Text("UDP \(monitor.listeningPorts.filter { $0.protocolName == "UDP" }.count)").tag("UDP")
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 175)
-            Spacer(minLength: 8)
+    private var toolbar: some View {
+        HStack(spacing: 10) {
+            searchField
             Text(Date.now, style: .time)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
@@ -88,9 +75,8 @@ struct ContentView: View {
             .help("刷新端口")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.leading, 8)
-        .padding(.trailing, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
     }
 
     private var searchField: some View {
@@ -104,8 +90,10 @@ struct ContentView: View {
                     .buttonStyle(.plain).foregroundStyle(.secondary)
             }
         }
-        .padding(.horizontal, 10)
-        .frame(height: 38)
+        .padding(.horizontal, 9)
+        .frame(maxWidth: .infinity)
+        .frame(height: 32)
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 
     private var portList: some View {
