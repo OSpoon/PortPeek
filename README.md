@@ -4,7 +4,9 @@
 
 PortPeek 是一款轻量、原生的 macOS 菜单栏工具，用来查看本机正在监听的 TCP / UDP 端口，并快速找到背后的应用、项目或开发服务。
 
-![PortPeek 产品界面](image.png)
+<div align="center">
+  <img  src="image.png" alt="PortPeek 产品界面" width="50%" />
+</div>
 
 ## 为什么需要 PortPeek？
 
